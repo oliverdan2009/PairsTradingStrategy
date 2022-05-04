@@ -15,7 +15,7 @@ stock(symbol, 'USD', 1)
 stock(symbols, 'USD', 1)
 Sys.setenv(TZ="UTC")
 
-symbol <- c('IBM','MSFT') #SPDR Portfolio Intermediate Term Treasury ETF (SPTI) and Schwab Intermediate-Term US Treasury ETF (SCHR)
+symbol <- c('IBM','MSFT') #IBM and Microsoft between 1996 and 2007
 
 initDate <- '1996-01-03' #yes it's not much data but it was necessary to get the necessary correlation to proceed with cointegration
 startDate <- '1996-01-05'

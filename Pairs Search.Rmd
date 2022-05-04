@@ -1,0 +1,146 @@
+---
+title: "Looking for Pairs"
+author: "Daniel Eduardo Oliver"
+date: "3/20/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, warning=FALSE, echo=FALSE}
+library(quantstrat)
+library(tseries)
+library(IKTrading) #had to get this through GITHUB at https://rdrr.io/github/pdrano/IKTrading/
+library(lattice)
+library(quantmod)
+library(zoo)
+library(urca)
+
+#.blotter <- new.env()
+#.strategy <- new.env()
+```
+
+SP500 ETFs
+```{r, warning=FALSE}
+library(ggplot2)
+#Step 1: initialize currency and instruments, and load historic data.(As ref. R Clenow and R 007d and "blotter and quantstrat" slides)
+currency("USD")
+
+Sys.setenv(TZ="UTC")
+
+symbol <- c('SPLG','SPY', 'IVV', 'VOO','IVW','RSP')
+stock(symbol, 'USD', 1)
+
+initDate <- '2018-01-05' #yes it's not much data but it was necessary to get the necessary correlation to proceed with cointegration
+startDate <- '2018-01-06'
+endDate <- '2022-03-22'
+
+getSymbols(Symbols = symbol, from=startDate, to=endDate, periodicity="daily", adjust=TRUE, index.class="POSIXct", env=".GlobalEnv")
+
+#when we short the spread we are selling one stock and buying another, such as selling SCHR and buying SPTI. This is because if the spread is higher than it's normal and we believe it will decrease. When we go long on the spread we are buying SCHR and selling SPTI because we believe the spread is lower than normal and that it will increase.
+
+stocks <- cbind(SPLG$SPLG.Adjusted,SPY$SPY.Adjusted,IVV$IVV.Adjusted,VOO$VOO.Adjusted, IVW$IVW.Adjusted, RSP$RSP.Adjusted)
+colnames(stocks) <- c("SPLG","SPY","IVV","VOO","IVW","RSP")
+
+cor.matrix <- cor(stocks)
+
+cor.matrix
+heatmap(cor.matrix)
+```
+```{r}
+#RSP and IVW have the lowest correlation of the bunch, but close enough correlation that they may still be cointegrated.
+spread <- OHLC(RSP) - OHLC(IVW)
+colnames(spread) <- c("open", "high", "low", "close")
+
+symbols <- c("spread")
+stock(symbols, 'USD', 1)
+
+chart_Series(spread)
+add_TA(EMA(Cl(spread), n =20),on=1,col="blue",lwd = 1.5) #adds a 20-day moving average of the spread
+
+
+
+```
+#Chose IVW and RSP to test if they are cointegrated. In turns out they are NOT coientegrated according to the Philips-Ouliaris Test. On the other hand, the basket of stocks are cointegrated and have at least one linear relationship with one another, as seen with the Johnansen method.
+```{r}
+x <- IVW$IVW.Adjusted
+y <-RSP$RSP.Adjusted
+prices <- cbind(y, x)
+coint.po=(ca.po(prices, demean="constant"))
+summary(coint.po)
+
+print("For the basket of etfs.")
+summary(ca.jo(stocks))
+```
+
+
+
+#It turns out IVV and SPLG are cointegrated with one another.
+```{r}
+#IVV and SPLG is pair with the highest correlation of the bunch.
+spread <- OHLC(IVV) - OHLC(SPLG)
+colnames(spread) <- c("open", "high", "low", "close")
+
+symbols <- c("spread")
+
+chart_Series(spread)
+add_TA(EMA(Cl(spread), n =20),on=1,col="blue",lwd = 1.5) #adds a 20-day moving average of the spread
+
+
+
+x <- IVV$IVV.Adjusted
+y <-SPLG$SPLG.Adjusted
+prices <- cbind(y, x)
+coint.po=(ca.po(prices, demean="constant"))
+summary(coint.po)
+
+```
+
+
+
+Oil 
+```{r, warning=FALSE}
+library(ggplot2)
+#Step 1: initialize currency and instruments, and load historic data.(As ref. R Clenow and R 007d and "blotter and quantstrat" slides)
+currency("USD")
+stock(symbol, 'USD', 1)
+stock(symbols, 'USD', 1)
+Sys.setenv(TZ="UTC")
+
+symbol <- c('USO','UCO', 'DBO', 'SCO','OIL','USL','OILK', 'OILU', 'OILD') 
+
+initDate <- '2018-01-05' #yes it's not much data but it was necessary to get the necessary correlation to proceed with cointegration
+startDate <- '2018-01-06'
+endDate <- '2022-03-22'
+
+getSymbols(Symbols = symbol, from=startDate, to=endDate, periodicity="daily", adjust=TRUE, index.class="POSIXct", env=".GlobalEnv")
+
+#when we short the spread we are selling SCHR and buying SPTI, this is because the spread is higher than it's normal and we believe it will decrease. When we go long on the spread we are buying SCHR and selling SPTI because we believe the spread is lower than normal and that it will increase.
+
+stocks <- cbind(USO$USO.Adjusted,UCO$UCO.Adjusted,DBO$DBO.Adjusted,SCO$SCO.Adjusted,OIL$OIL.Adjusted,USL$USL.Adjusted,OILK$OILK.Adjusted,OILU$OILU.Adjusted,OILD$OILD.Adjusted)
+colnames(stocks) <- c('USO','UCO', 'DBO', 'SCO','OIL','USL','OILK', 'OILU', 'OILD')
+
+cor.matrix <- cor(na.omit(stocks))
+
+cor.matrix
+heatmap(cor.matrix)
+```
+
+
+#USL and OIL are cointegrated with one another. On the other hand, the whole basket of oil ETFs are not cointegrated.
+```{r}
+x <- OILU$OILU.Adjusted
+y <-USL$USL.Adjusted
+prices <- cbind(y, x)
+coint.po=(ca.po(prices, demean="constant"))
+summary(coint.po)
+
+
+print("For the basket of etfs, below.")
+
+summary(ca.jo(stocks))
+
+
+```
